@@ -1,0 +1,315 @@
+#!/usr/bin/env bash
+VERSION="0.1.0"
+
+set -o history
+HISTFILE=~/.myrepl_history
+HISTCONTROL=ignorespace
+
+print_version()
+{
+  echo "terraform-repl version $VERSION"
+}
+
+print_options()
+{
+  echo "terraform-repl [version $VERSION]"
+  echo "Usage: "
+  echo "  -h, --help   : Display this message"
+  echo "  -v, --version: Display the version of terraform-repl"
+  echo "  -no-docker-container-backend: Do not use a terraform console docker container as the backend for terraform console commands"
+}
+
+# by default, use the docker container backend
+use_docker_container_backend=true
+timestamp=$(date +%Y%m%dT%H%M%SZ)
+container_name="terraformreplcontainer${timestamp}"
+
+# parse command line arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -h|--help) print_options; exit 0 ;;
+        -v|--version) print_version; exit 0 ;;
+        -no-docker-container-backend) use_docker_container_backend=false ;;
+        *) echo "Unknown parameter passed: $1" && exit 1;;
+    esac
+    shift
+done
+
+_validate_working_directory() {
+  if ! compgen -G "./*.tf" > /dev/null; then
+    echo "No terraform source files were found"
+    exit 1
+  fi
+}
+
+_validate_docker_install () {
+  # make sure docker is installed
+  which docker &> /dev/null
+  if [[ "$?" -ne 0 ]]; then
+    echo "docker is not installed"
+    echo "To not use the docker container backend, use the -no-docker-container-backend option when running terraform-repl"
+    exit 1
+  fi
+
+  # make sure socat is installed
+  which socat &> /dev/null
+  if [[ "$?" -ne 0 ]]; then
+    echo "socat is not installed"
+    exit 1
+  fi
+}
+
+_validate_prerequisites () {
+  # make sure terraform is installed
+  which terraform &> /dev/null
+  if [[ "$?" -ne 0 ]]; then
+    echo "terraform is not installed"
+    exit 1
+  fi
+
+  # make sure jq is installed
+  which jq &> /dev/null
+  if [[ "$?" -ne 0 ]]; then
+    echo "jq is not installed"
+    exit 1
+  fi
+
+  # make sure hcl2json is installed
+  which hcl2json &> /dev/null
+  if [[ "$?" -ne 0 ]]; then
+    echo "hcl2json is not installed"
+    exit 1
+  fi
+}
+
+_wait_tf_container () {
+  # wait for the docker container to be operational
+  while : ; do
+      cmd="local"
+      cmd_output=$(_run_tf_console_command_in_container "$cmd" | grep -o "$cmd")
+
+      if [[ -n "$cmd_output" ]] && [[ "$cmd" != "$cmd_output" ]]; then
+        break
+      fi
+  done
+}
+
+_run_tf_container () {
+  # start docker container running terraform console in the background
+  echo "Starting terraform console docker container..."
+  run_docker_command_output=$(docker run -itd -v "$(pwd)":/data --name "$container_name" -w /data --entrypoint=sh hashicorp/terraform -c "terraform console" 1>/dev/null)
+  run_docker_command_exit_code=$?
+  if [[ "$run_docker_command_exit_code" -ne 0 ]]; then
+    echo "$run_docker_command_output"
+    exit 1
+  fi
+
+  # wait for the docker container to be operational
+  _wait_tf_container
+
+  # if the docker container stops immediately, then something in the terraform source code isn't correct
+  if [ "$( docker container inspect -f '{{.State.Running}}' "$container_name" )" == "false" ]; then
+    docker logs "$container_name"
+    exit 1
+  fi
+}
+
+_start_tf_container () {
+  # start docker container
+  docker start "$container_name" &> /dev/null
+}
+
+_stop_tf_container () {
+  # stop docker container
+  docker stop "$container_name" &> /dev/null
+}
+
+_remove_tf_container () {
+  # remove docker container
+  docker rm "$container_name" &> /dev/null
+}
+
+_run_tf_console_command_in_container() {
+  # execute the specified command in terraform console in the docker container
+  d=$(date +%Y-%m-%dT%H:%M:%SZ)
+  echo "$1" | socat EXEC:"docker attach ${container_name}",pty STDIN;
+  docker logs "$container_name" --since "$d" | sed 1d
+}
+
+_run_tf_console_command() {
+  # execute the specified command in terraform console
+  echo "$1" | terraform console
+}
+
+_get_obj () {
+  # extract object from terraform source code using hcl2json and jq
+  tfsrc=()
+  for file in *.tf ; do
+    value=$(<"$file")
+    value="${value}"$'\n'
+    tfsrc+=("$value")
+  done
+
+  echo -e "${tfsrc[@]}" | hcl2json | jq -M -e "$1 //empty" 2> /dev/null
+}
+
+_tf_console_command () {
+  # execute the specified command in terraform console
+  if [ "${use_docker_container_backend}" = true ]; then
+    _run_tf_console_command_in_container "$1"
+  else
+    _run_tf_console_command "$1"
+  fi
+}
+
+_validate_variable_assignment () {
+  # validate that the variable value is valid HCL
+  echo "$1" | hcl2json &> /dev/null
+  if [[ "$?" -ne 0 ]]; then
+    echo "The variable value is not valid HCL"
+    return 1
+  fi
+}
+
+_add_resource () {
+  # add the new resource to a tmp .tf file
+  echo "$1" >> "terraform_repl_tmp.tf"
+
+  if [[ "$? " -ne 0 ]]; then
+    echo "Could not create temporary file in the current directory."
+    echo "Do you have write privileges?"
+  fi
+}
+
+# cleanup function to be run on exit
+_cleanup() {
+  if [ "${use_docker_container_backend}" = true ]; then
+    echo "Shutting down terraform console docker container..."
+    _stop_tf_container
+    _remove_tf_container
+  fi
+  # clear additional resource file if it exists
+  if [ -f "terraform_repl_tmp.tf" ]; then
+    rm terraform_repl_tmp.tf
+  fi
+}
+
+_validate_working_directory
+_validate_prerequisites
+
+if [ "${use_docker_container_backend}" = true ]; then
+  # if the use-docker-container-backend flag has been specified, start the backend container
+  _validate_docker_install
+  _run_tf_container
+fi
+
+trap _cleanup EXIT
+
+main() {
+  while true; do
+    # read input and write to history
+    read -ep "> " input
+
+    # if input is empty, continue
+    if grep -qE "^$" <<< "$input"; then
+      continue
+    fi
+
+    # only write non empty input to history
+    history -s "$input"
+
+    # check if the input is a locals assignment
+    if grep -qE "^(local\.[^.]+\=.+)" <<< "$input"; then
+      # parse the input
+      split_input=(${input//=/ })
+      split_local=(${split_input//./ })
+
+      read -r -d '' localVar << EOM
+      locals {${split_local[1]} = ${split_input[@]:1}}
+EOM
+      # check whether the assignment is valid hcl language
+      assignment=$(_validate_variable_assignment "$localVar")
+      assignment_exit_code=$?
+
+      if [[ "$assignment_exit_code" -eq 0 ]]; then
+        # add the new local to a tmp file and restart the container if needed
+        _add_resource "$localVar"
+
+        if [ "${use_docker_container_backend}" = true ]; then
+          # stop the container to release the lock
+          _stop_tf_container
+        fi
+
+        # run the command in a standalone terraform console in case it is an incorrect command
+        terraform_console_command=$(_run_tf_console_command)
+        terraform_console_command_exit_code=$?
+
+        if [ "$terraform_console_command_exit_code" -ne 0 ]; then
+          # remove the resource from the temporary file
+          head -n -1 terraform_repl_tmp.tf > terraform_repl_tmp_2.tf
+          mv terraform_repl_tmp_2.tf terraform_repl_tmp.tf
+        fi
+
+        if [ "${use_docker_container_backend}" = true ]; then
+          # restart the container
+          _start_tf_container
+          _wait_tf_container
+        fi
+
+      else
+        echo "$assignment"
+      fi
+      continue
+    fi
+
+    # if the input is exacly local, use hcl2json and jq to get object
+    if grep -qE "^local$" <<< "$input"; then
+      _get_obj ".locals"
+      continue
+    fi
+
+    # if the input is resource followed by an optional key, use hcl2json and jq to get object
+    if grep -qE "^resource(\.[^.]+)?$" <<< "$input"; then
+      _get_obj ".$input"
+      if [[ "$?" -ne 0 ]]; then
+        echo "The provided input did not match any resource object"
+      fi
+      continue
+    fi
+
+    # if the input is data followed by an optional key, use hcl2json and jq to get object
+    if grep -qE "^data(\.[^.]+)?$" <<< "$input"; then
+      _get_obj ".$input"
+      if [[ "$?" -ne 0 ]]; then
+        echo "The provided input did not match any data object"
+      fi
+      continue
+    fi
+
+    # if the input is output followed by an optional key, use hcl2json and jq to get object
+    if grep -qE "^output(\.[^.]+)?$" <<< "$input"; then
+      _get_obj ".$input"
+      if [[ "$?" -ne 0 ]]; then
+        echo "The provided input did not match any output object"
+      fi
+      continue
+    fi
+
+    # if the input is either exit, clear or history, evaluate it
+    case "$input" in
+        exit | clear | history)
+          eval "$input"
+        ;;
+        *)
+        # otherwise, feed command to terraform console
+        _tf_console_command "$input"
+    esac
+
+  done
+}
+
+# Clear command history and start program
+cat /dev/null > ~/.myrepl_history && history -c
+main
+
+
