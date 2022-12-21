@@ -98,7 +98,7 @@ To view the command history:
 All terraform commands can be run as usual:
 
 ```bash
-> > element(local.d.nums,0)
+> element(local.d.nums,0)
 3
 ```
 
@@ -121,7 +121,7 @@ To exit:
 - [docker*](https://docs.docker.com/desktop/install/linux-install/)
 - socat*
 
-* optional, although highly recommended
+\* optional, although highly recommended
 
 ## Installation
 
