@@ -19,7 +19,7 @@ By default, terraform-repl starts a hashicorp/terraform docker container running
 
 ## Usage
 
-To start the REPL:
+To start the REPL, enter a directory that contains terraform files and then run `terraform-repl`:
 
 ```bash
 $ terraform-repl
