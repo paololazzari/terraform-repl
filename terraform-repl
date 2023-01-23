@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.1.0"
+VERSION="0.1.1"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -34,13 +34,6 @@ while [[ "$#" -gt 0 ]]; do
     esac
     shift
 done
-
-_validate_working_directory() {
-  if ! compgen -G "./*.tf" > /dev/null; then
-    echo "No terraform source files were found"
-    exit 1
-  fi
-}
 
 _validate_docker_install () {
   # make sure docker is installed
@@ -142,6 +135,12 @@ _run_tf_console_command() {
 }
 
 _get_obj () {
+  # make sure terraform source files exist
+  if ! compgen -G "./*.tf" > /dev/null; then
+    echo "No terraform source files were found"
+    return
+  fi
+
   # extract object from terraform source code using hcl2json and jq
   tfsrc=()
   for file in *.tf ; do
@@ -194,7 +193,6 @@ _cleanup() {
   fi
 }
 
-_validate_working_directory
 _validate_prerequisites
 
 if [ "${use_docker_container_backend}" = true ]; then
