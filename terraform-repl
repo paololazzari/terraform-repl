@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.1.1"
+VERSION="0.1.2"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -263,6 +263,9 @@ EOM
     # if the input is exacly local, use hcl2json and jq to get object
     if grep -qE "^local$" <<< "$input"; then
       _get_obj ".locals"
+      if [[ "$?" -ne 0 ]]; then
+        echo "The provided input did not match any locals object"
+      fi
       continue
     fi
 
