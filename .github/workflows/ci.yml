@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master", "dev" ]
+  pull_request:
+    branches: [ "master", "dev" ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Run tests
+      run: |
+        # Run test suite in a docker container
+        cd test
+        docker run -w /src -v $(pwd):/src ubuntu bash -c "chmod +x test.sh; ./test.sh"
