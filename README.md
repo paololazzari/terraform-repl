@@ -128,4 +128,5 @@ To exit:
 ```bash
 $ curl -O https://raw.githubusercontent.com/paololazzari/terraform-repl/master/terraform-repl
 $ cp terraform-repl /usr/local/bin/
+$ chmod +x /usr/local/bin/terraform-repl
 ```
