@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.1.2"
+VERSION="0.1.3"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -124,9 +124,8 @@ _remove_tf_container () {
 
 _run_tf_console_command_in_container() {
   # execute the specified command in terraform console in the docker container
-  d=$(date +%Y-%m-%dT%H:%M:%SZ)
   echo "$1" | socat EXEC:"docker attach ${container_name}",pty STDIN;
-  docker logs "$container_name" --since "$d" | sed 1d
+  docker logs "$container_name" --since "1s" | sed 1d
 }
 
 _run_tf_console_command() {
