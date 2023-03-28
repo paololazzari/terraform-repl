@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.1.3"
+VERSION="0.1.4"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -88,8 +88,21 @@ _wait_tf_container () {
 }
 
 _run_tf_container () {
+
+  # check whether the current directory is already mounted in another container, as this will prevent terraform from working properly due to the state lock
+  working_directory="$(pwd)"
+  running_containers="$(docker ps -q --filter "name=terraformrepl")"
+  if [[ -n "$running_containers" ]] ; then
+    running_containers_with_cwd_mounted=$(echo "$running_containers" | xargs -I {} docker inspect -f '{{ .Mounts }}' {} | grep "  $working_directory /data" )
+    if [[ -n "$running_containers_with_cwd_mounted" ]] ; then
+      echo "The working directory is already mounted in a different terraformrepl container"
+      exit 1
+    fi
+  fi
+
   # start docker container running terraform console in the background
   echo "Starting terraform console docker container..."
+
   run_docker_command_output=$(docker run -itd -v "$(pwd)":/data --name "$container_name" -w /data --entrypoint=sh hashicorp/terraform -c "terraform console" 1>/dev/null)
   run_docker_command_exit_code=$?
   if [[ "$run_docker_command_exit_code" -ne 0 ]]; then
