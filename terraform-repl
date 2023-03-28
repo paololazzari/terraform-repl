@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.1.4"
+VERSION="0.1.5"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -78,10 +78,23 @@ _validate_prerequisites () {
 _wait_tf_container () {
   # wait for the docker container to be operational
   while : ; do
-      cmd="local"
-      cmd_output=$(_run_tf_console_command_in_container "$cmd" | grep -o "$cmd")
 
-      if [[ -n "$cmd_output" ]] && [[ "$cmd" != "$cmd_output" ]]; then
+      _check_container_running_status
+
+      cmd="local"
+      cmd_output=$(_run_tf_console_command_in_container "$cmd")
+      cmd_output_exit_code=$?
+
+      # exit immediately if socat failed, as this means the docker container could not start
+      if [[ "$cmd_output_exit_code" -ne 0 ]]; then
+        printf "Something went wrong: the docker container backend could not start:\n\n"
+        docker logs "$container_name" --since "1s" | sed 1d
+        exit 1
+      fi
+
+      cmd_output_match=$(echo "$cmd_output" | grep -o "$cmd")
+
+      if [[ -n "$cmd_output_match" ]] && [[ "$cmd" != "$cmd_output_match" ]]; then
         break
       fi
   done
@@ -112,12 +125,6 @@ _run_tf_container () {
 
   # wait for the docker container to be operational
   _wait_tf_container
-
-  # if the docker container stops immediately, then something in the terraform source code isn't correct
-  if [ "$( docker container inspect -f '{{.State.Running}}' "$container_name" )" == "false" ]; then
-    docker logs "$container_name"
-    exit 1
-  fi
 }
 
 _start_tf_container () {
@@ -135,10 +142,20 @@ _remove_tf_container () {
   docker rm "$container_name" &> /dev/null
 }
 
+_check_container_running_status () {
+  # if the docker is not running, then something went wrong
+  if [ ! "$( docker ps | grep "$container_name" )" ]; then
+    echo "Something went wrong: the docker container backend is no longer running"
+    exit 1
+  fi
+}
+
 _run_tf_console_command_in_container() {
   # execute the specified command in terraform console in the docker container
-  echo "$1" | socat EXEC:"docker attach ${container_name}",pty STDIN;
+  echo "$1" | socat EXEC:"docker attach ${container_name}",pty STDIN &> /dev/null
+  socat_exit_code=$?
   docker logs "$container_name" --since "1s" | sed 1d
+  return "$socat_exit_code"
 }
 
 _run_tf_console_command() {
@@ -167,6 +184,7 @@ _get_obj () {
 _tf_console_command () {
   # execute the specified command in terraform console
   if [ "${use_docker_container_backend}" = true ]; then
+    _check_container_running_status
     _run_tf_console_command_in_container "$1"
   else
     _run_tf_console_command "$1"
