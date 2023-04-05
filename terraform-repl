@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.1.5"
+VERSION="0.1.6"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -101,6 +101,12 @@ _wait_tf_container () {
 }
 
 _run_tf_container () {
+
+  # if .terraform.tfstate.lock.info already exists, terraform console is already running
+  if [ -f ".terraform.tfstate.lock.info" ]; then
+    echo "A terraform console process is already running here"
+    exit 1
+  fi
 
   # check whether the current directory is already mounted in another container, as this will prevent terraform from working properly due to the state lock
   working_directory="$(pwd)"
