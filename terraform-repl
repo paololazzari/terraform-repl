@@ -221,6 +221,10 @@ _cleanup() {
   if [ -f "terraform_repl_tmp.tf" ]; then
     rm terraform_repl_tmp.tf
   fi
+  # clear lock
+  if [ -f ".terraform.tfstate.lock.info" ]; then
+    rm ".terraform.tfstate.lock.info"
+  fi
 }
 
 _validate_prerequisites
