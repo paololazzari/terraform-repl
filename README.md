@@ -114,6 +114,45 @@ To exit:
 > exit
 ```
 
+### Transcript
+
+When you start the REPL you may also specify the `-transcript` option. This will generate a transcript of all inputs and outputs of the session.
+For the commands demonstrated above, the transcript file would be as follows:
+
+<details>
+    <summary>Sample transcript</summary>
+
+    > local
+    [
+      {
+        "a": "foo",
+        "b": {
+          "nums": [
+            1,
+            2
+          ]
+        }
+      }
+    ]
+    > local.b.nums[0]
+    1
+    > local.c="example"
+    > local.c
+    "example"
+    > local.d={"nums": [ 3, 4 ] }
+    > local.d
+    {
+      "nums" = [
+        3,
+        4,
+      ]
+    }
+    > element(local.d.nums,0)
+    3
+
+</details>
+
+
 ## Prerequisites
 
 - [jq](https://github.com/stedolan/jq)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.1.6"
+VERSION="0.1.7"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -14,21 +14,25 @@ print_options()
 {
   echo "terraform-repl [version $VERSION]"
   echo "Usage: "
-  echo "  -h, --help   : Display this message"
-  echo "  -v, --version: Display the version of terraform-repl"
+  echo "  -h, --help    : Display this message"
+  echo "  -v, --version : Display the version of terraform-repl"
+  echo "  -transcript   : Generate a transcript file"
   echo "  -no-docker-container-backend: Do not use a terraform console docker container as the backend for terraform console commands"
 }
 
 # by default, use the docker container backend
 use_docker_container_backend=true
+generate_transcript=false
 timestamp=$(date +%Y%m%dT%H%M%SZ)
 container_name="terraformreplcontainer${timestamp}"
+transcript_name="terraform-repl-transcript-${timestamp}"
 
 # parse command line arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -h|--help) print_options; exit 0 ;;
         -v|--version) print_version; exit 0 ;;
+        -transcript) generate_transcript=true ;;
         -no-docker-container-backend) use_docker_container_backend=false ;;
         *) echo "Unknown parameter passed: $1" && exit 1;;
     esac
@@ -191,7 +195,9 @@ _tf_console_command () {
   # execute the specified command in terraform console
   if [ "${use_docker_container_backend}" = true ]; then
     _check_container_running_status
-    _run_tf_console_command_in_container "$1"
+    command_output=$(_run_tf_console_command_in_container "$1" | tee /dev/tty)
+    _write_to_transcript_if_enabled "$command_output"
+
   else
     _run_tf_console_command "$1"
   fi
@@ -231,6 +237,17 @@ _cleanup() {
   if [ -f ".terraform.tfstate.lock.info" ]; then
     rm ".terraform.tfstate.lock.info"
   fi
+  # tell user where to find transcript file
+  if [ "${generate_transcript}" = true ]; then
+    echo "Transcript file /tmp/$transcript_name was generated"
+  fi
+}
+
+# generate a transcript file which contains REPL inputs and outputs
+_write_to_transcript_if_enabled() {
+  if [ "${generate_transcript}" = true ]; then
+    echo "$1" | sed 's/\x1B\[[0-9;]\{1,\}[A-Za-z]//g' >> "/tmp/$transcript_name"
+  fi
 }
 
 _validate_prerequisites
@@ -255,6 +272,9 @@ main() {
 
     # only write non empty input to history
     history -s "$input"
+
+    # write input to transcript if enabled
+    _write_to_transcript_if_enabled "$input"
 
     # check if the input is a locals assignment
     if grep -qE "^(local\.[^.]+\=.+)" <<< "$input"; then
@@ -302,37 +322,41 @@ EOM
 
     # if the input is exacly local, use hcl2json and jq to get object
     if grep -qE "^local$" <<< "$input"; then
-      _get_obj ".locals"
+      command_output=$(_get_obj ".locals" | tee /dev/tty)
       if [[ "$?" -ne 0 ]]; then
         echo "The provided input did not match any locals object"
       fi
+      _write_to_transcript_if_enabled "$command_output"
       continue
     fi
 
     # if the input is resource followed by an optional key, use hcl2json and jq to get object
     if grep -qE "^resource(\.[^.]+)?$" <<< "$input"; then
-      _get_obj ".$input"
+      command_output=$(_get_obj ".$input" | tee /dev/tty)
       if [[ "$?" -ne 0 ]]; then
         echo "The provided input did not match any resource object"
       fi
+      _write_to_transcript_if_enabled "$command_output"
       continue
     fi
 
     # if the input is data followed by an optional key, use hcl2json and jq to get object
     if grep -qE "^data(\.[^.]+)?$" <<< "$input"; then
-      _get_obj ".$input"
+      command_output=$(_get_obj ".$input" | tee /dev/tty)
       if [[ "$?" -ne 0 ]]; then
         echo "The provided input did not match any data object"
       fi
+      _write_to_transcript_if_enabled "$command_output"
       continue
     fi
 
     # if the input is output followed by an optional key, use hcl2json and jq to get object
     if grep -qE "^output(\.[^.]+)?$" <<< "$input"; then
-      _get_obj ".$input"
+      command_output=$(_get_obj ".$input" | tee /dev/tty)
       if [[ "$?" -ne 0 ]]; then
         echo "The provided input did not match any output object"
       fi
+      _write_to_transcript_if_enabled "$command_output"
       continue
     fi
 
