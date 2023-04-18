@@ -114,6 +114,19 @@ To exit:
 > exit
 ```
 
+
+### Tab completion
+
+You can use the TAB key to get autocompletion for terraform functions.
+
+```bash
+> e<TAB>
+endswith element
+> el<TAB>
+> element
+```
+
+
 ### Transcript
 
 When you start the REPL you may also specify the `-transcript` option. This will generate a transcript of all inputs and outputs of the session.
