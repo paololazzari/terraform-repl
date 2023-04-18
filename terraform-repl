@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.1.7"
+VERSION="0.2.0"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -14,14 +14,145 @@ print_options()
 {
   echo "terraform-repl [version $VERSION]"
   echo "Usage: "
-  echo "  -h, --help    : Display this message"
-  echo "  -v, --version : Display the version of terraform-repl"
-  echo "  -transcript   : Generate a transcript file"
-  echo "  -no-docker-container-backend: Do not use a terraform console docker container as the backend for terraform console commands"
+  echo "  -h, --help                   : Display this message"
+  echo "  -v, --version                : Display the version of terraform-repl"
+  echo "  -transcript                  : Generate a transcript file"
+  echo "  -no-tab-completion           : Disable tab completion"
+  echo "  -no-docker-container-backend : Do not use a terraform console docker container as the backend for terraform console commands"
 }
+
+TERRAFORM_FUNCTIONS=(
+  # numeric functions
+  "abs"
+  "ceil"
+  "floor"
+  "log"
+  "max"
+  "min"
+  "parseint"
+  "pow"
+  "signum"
+  # string functions
+  "chomp"
+  "endswith"
+  "format"
+  "formatlist"
+  "indent"
+  "join"
+  "lower"
+  "regex"
+  "regexall"
+  "replace"
+  "split"
+  "startswith"
+  "strrev"
+  "substr"
+  "title"
+  "trim"
+  "trimprefix"
+  "trimsuffix"
+  "trimspace"
+  "upper"
+  # collection functions
+  "alltrue"
+  "anytrue"
+  "chunklist"
+  "coalesce"
+  "coalescelist"
+  "compact"
+  "concat"
+  "contains"
+  "distinct"
+  "element"
+  "flatten"
+  "index"
+  "keys"
+  "length"
+  "list"
+  "lookup"
+  "map"
+  "matchkeys"
+  "merge"
+  "one"
+  "range"
+  "reverse"
+  "setintersection"
+  "setproduct"
+  "setsubtract"
+  "setunion"
+  "slice"
+  "sort"
+  "sum"
+  "transpose"
+  "values"
+  "zipmap"
+  # encoding functions
+  "base64decode"
+  "base64encode"
+  "base64gzip"
+  "csvdecode"
+  "jsondecode"
+  "jsonencode"
+  "textdecodebase64"
+  "textencodebase64"
+  "urlencode"
+  "yamldecode"
+  "yamlencode"
+  # filesystem functions
+  "abspath"
+  "dirname"
+  "pathexpand"
+  "basename"
+  "file"
+  "fileexists"
+  "fileset"
+  "filebase64"
+  "templatefile"
+  # date and time functions
+  "formatdate"
+  "timeadd"
+  "timecmp"
+  "timestamp"
+  # hash and crypto functions
+  "base64sha256"
+  "base64sha512"
+  "bcrypt"
+  "filebase64sha256"
+  "filebase64sha512"
+  "filemd5"
+  "filesha1"
+  "filesha256"
+  "filesha512"
+  "md5"
+  "rsadecrypt"
+  "sha1"
+  "sha256"
+  "sha512"
+  "uuid"
+  "uuidv5"
+  # ip network functions
+  cidrhost
+  cidrnetmask
+  cidrsubnet
+  cidrsubnets
+  # type conversion functions
+  can
+  nonsensitive
+  sensitive
+  tobool
+  tolist
+  tomap
+  tonumber
+  toset
+  tostring
+  try
+  type
+)
+
 
 # by default, use the docker container backend
 use_docker_container_backend=true
+use_tab_completion=true
 generate_transcript=false
 timestamp=$(date +%Y%m%dT%H%M%SZ)
 container_name="terraformreplcontainer${timestamp}"
@@ -33,6 +164,7 @@ while [[ "$#" -gt 0 ]]; do
         -h|--help) print_options; exit 0 ;;
         -v|--version) print_version; exit 0 ;;
         -transcript) generate_transcript=true ;;
+        -no-tab-completion) use_tab_completion=false ;;
         -no-docker-container-backend) use_docker_container_backend=false ;;
         *) echo "Unknown parameter passed: $1" && exit 1;;
     esac
@@ -77,6 +209,38 @@ _validate_prerequisites () {
     echo "hcl2json is not installed"
     exit 1
   fi
+}
+
+_enable_tab_completion() {
+  set -o emacs
+  bind -x '"\t":"_tab"';
+}
+
+_tab()
+{
+  # do nothing if input is empty
+  if [ -z "$READLINE_LINE" ]; then
+    return
+  fi
+
+  # find possible matches in terraform functions list
+  possible_matches=($(printf "%s\n" "${TERRAFORM_FUNCTIONS[@]}" | grep "^${READLINE_LINE}"))
+
+  # if no matches are found, return
+  if [ ${#possible_matches[@]} -eq 0 ]; then
+    return
+
+  # if a single match is found, use that to replace input string
+  elif [ ${#possible_matches[@]} -eq 1 ]; then
+    READLINE_LINE="${possible_matches[0]}"
+  # otherwise, print all matches
+  else
+    printf "%s  " "${possible_matches[@]}"
+    printf "\n"
+  fi
+
+  # adjust cursor to length of new string
+  READLINE_POINT="${#READLINE_LINE}"
 }
 
 _wait_tf_container () {
@@ -251,6 +415,10 @@ _write_to_transcript_if_enabled() {
 }
 
 _validate_prerequisites
+
+if [ "${use_tab_completion}" = true ]; then
+  _enable_tab_completion
+fi
 
 if [ "${use_docker_container_backend}" = true ]; then
   # if the use-docker-container-backend flag has been specified, start the backend container
