@@ -232,7 +232,7 @@ _tab()
 
   # if a single match is found, use that to replace input string
   elif [ ${#possible_matches[@]} -eq 1 ]; then
-    READLINE_LINE="${possible_matches[0]}"
+    READLINE_LINE="${possible_matches[0]}("
   # otherwise, print all matches
   else
     printf "%s  " "${possible_matches[@]}"
