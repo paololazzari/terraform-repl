@@ -95,7 +95,7 @@ To view the command history:
     7  history
 ```
 
-All terraform commands can be run as usual:
+All terraform functions can be run as usual:
 
 ```bash
 > element(local.d.nums,0)
