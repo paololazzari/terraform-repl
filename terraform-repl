@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.0"
+VERSION="0.2.1"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -211,6 +211,28 @@ _validate_prerequisites () {
   fi
 }
 
+_check_running_terraform_console_process () {
+  # if .terraform.tfstate.lock.info already exists, terraform console is already running
+  if [ -f ".terraform.tfstate.lock.info" ]; then
+    echo "A terraform console process is already running here"
+    exit 1
+  fi
+}
+
+_check_running_terraform_repl_container_in_dir () {
+  # check whether the current directory is already mounted in another container, as this will prevent terraform from working properly due to the state lock
+  working_directory="$(pwd)"
+  running_containers="$(docker ps -q --filter "name=terraformrepl")"
+  if [[ -n "$running_containers" ]] ; then
+    running_container_with_cwd_mounted=$(echo "$running_containers" | xargs -I {} docker inspect -f '{{ .Mounts }} {{.Name}}' {} | grep "  $working_directory /data" )
+    if [[ -n "$running_container_with_cwd_mounted" ]] ; then
+      running_container_name=$(echo "$running_container_with_cwd_mounted" | awk -F/ '{print $NF}')
+      echo "The working directory is already mounted in docker container $running_container_name"
+      exit 1
+    fi
+  fi
+}
+
 _enable_tab_completion() {
   set -o emacs
   bind -x '"\t":"_tab"';
@@ -269,24 +291,6 @@ _wait_tf_container () {
 }
 
 _run_tf_container () {
-
-  # if .terraform.tfstate.lock.info already exists, terraform console is already running
-  if [ -f ".terraform.tfstate.lock.info" ]; then
-    echo "A terraform console process is already running here"
-    exit 1
-  fi
-
-  # check whether the current directory is already mounted in another container, as this will prevent terraform from working properly due to the state lock
-  working_directory="$(pwd)"
-  running_containers="$(docker ps -q --filter "name=terraformrepl")"
-  if [[ -n "$running_containers" ]] ; then
-    running_containers_with_cwd_mounted=$(echo "$running_containers" | xargs -I {} docker inspect -f '{{ .Mounts }}' {} | grep "  $working_directory /data" )
-    if [[ -n "$running_containers_with_cwd_mounted" ]] ; then
-      echo "The working directory is already mounted in a different terraformrepl container"
-      exit 1
-    fi
-  fi
-
   # start docker container running terraform console in the background
   echo "Starting terraform console docker container..."
 
@@ -423,7 +427,11 @@ fi
 if [ "${use_docker_container_backend}" = true ]; then
   # if the use-docker-container-backend flag has been specified, start the backend container
   _validate_docker_install
+  _check_running_terraform_repl_container_in_dir
+  _check_running_terraform_console_process
   _run_tf_container
+else
+  _check_running_terraform_console_process
 fi
 
 trap _cleanup EXIT
