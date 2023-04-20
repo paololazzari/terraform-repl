@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.1"
+VERSION="0.2.2"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -533,6 +533,12 @@ EOM
         echo "The provided input did not match any output object"
       fi
       _write_to_transcript_if_enabled "$command_output"
+      continue
+    fi
+
+    # if the input is ! followed by a string, evaluate the string
+    if grep -qE "^!.+" <<< "$input"; then
+      eval "${input:1}"
       continue
     fi
 

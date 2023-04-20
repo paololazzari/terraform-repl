@@ -102,6 +102,13 @@ All terraform functions can be run as usual:
 3
 ```
 
+To run an external command, prepend the command with `!`:
+
+```bash
+> !grep "locals" main.tf
+locals {
+```
+
 To clear the screen:
 
 ```bash
