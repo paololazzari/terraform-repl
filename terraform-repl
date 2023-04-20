@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.2"
+VERSION="0.2.3"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -405,8 +405,8 @@ _cleanup() {
   if [ -f ".terraform.tfstate.lock.info" ]; then
     rm ".terraform.tfstate.lock.info"
   fi
-  # tell user where to find transcript file
-  if [ "${generate_transcript}" = true ]; then
+  # tell user where to find transcript file if it exists, meaning at least one command was run
+  if [ "${generate_transcript}" = true ] && [ -f "/tmp/$transcript_name" ]; then
     echo "Transcript file /tmp/$transcript_name was generated"
   fi
 }
