@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.3"
+VERSION="0.2.4"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -338,8 +338,9 @@ _run_tf_console_command_in_container() {
 
 _run_tf_console_command() {
   # execute the specified command in terraform console
-  echo "$1" | terraform console
+  echo "$1" | terraform console 2>&1
 }
+
 
 _get_obj () {
   # make sure terraform source files exist
@@ -364,11 +365,11 @@ _tf_console_command () {
   if [ "${use_docker_container_backend}" = true ]; then
     _check_container_running_status
     command_output=$(_run_tf_console_command_in_container "$1" | tee /dev/tty)
-    _write_to_transcript_if_enabled "$command_output"
-
   else
-    _run_tf_console_command "$1"
+    command_output=$(_run_tf_console_command "$1" | tee /dev/tty)
   fi
+  # write command output to transcript file if transcript was enabled
+  _write_to_transcript_if_enabled "$command_output"
 }
 
 _validate_variable_assignment () {
@@ -414,7 +415,7 @@ _cleanup() {
 # generate a transcript file which contains REPL inputs and outputs
 _write_to_transcript_if_enabled() {
   if [ "${generate_transcript}" = true ]; then
-    echo "$1" | sed 's/\x1B\[[0-9;]\{1,\}[A-Za-z]//g' >> "/tmp/$transcript_name"
+    printf "%s \n" "$@" | sed 's/\x1B\[[0-9;]\{1,\}[A-Za-z]//g' >> "/tmp/$transcript_name"
   fi
 }
 
@@ -449,11 +450,11 @@ main() {
     # only write non empty input to history
     history -s "$input"
 
-    # write input to transcript if enabled
-    _write_to_transcript_if_enabled "$input"
-
     # check if the input is a locals assignment
     if grep -qE "^(local\.[^.]+\=.+)" <<< "$input"; then
+      # write input to transcript if enabled
+      _write_to_transcript_if_enabled "> $input"
+
       # parse the input
       split_input=(${input//=/ })
       split_local=(${split_input//./ })
@@ -502,7 +503,8 @@ EOM
       if [[ "$?" -ne 0 ]]; then
         echo "The provided input did not match any locals object"
       fi
-      _write_to_transcript_if_enabled "$command_output"
+      # write input and output to transcript if enabled
+      _write_to_transcript_if_enabled "> $input" "$command_output"
       continue
     fi
 
@@ -512,7 +514,8 @@ EOM
       if [[ "$?" -ne 0 ]]; then
         echo "The provided input did not match any resource object"
       fi
-      _write_to_transcript_if_enabled "$command_output"
+      # write input and output to transcript if enabled
+      _write_to_transcript_if_enabled "> $input" "$command_output"
       continue
     fi
 
@@ -522,7 +525,8 @@ EOM
       if [[ "$?" -ne 0 ]]; then
         echo "The provided input did not match any data object"
       fi
-      _write_to_transcript_if_enabled "$command_output"
+      # write input and output to transcript if enabled
+      _write_to_transcript_if_enabled "> $input" "$command_output"
       continue
     fi
 
@@ -532,7 +536,8 @@ EOM
       if [[ "$?" -ne 0 ]]; then
         echo "The provided input did not match any output object"
       fi
-      _write_to_transcript_if_enabled "$command_output"
+      # write input and output to transcript if enabled
+      _write_to_transcript_if_enabled "> $input" "$command_output"
       continue
     fi
 
@@ -548,6 +553,8 @@ EOM
           eval "$input"
         ;;
         *)
+        # write input to transcript if enabled
+        _write_to_transcript_if_enabled "> $input"
         # otherwise, feed command to terraform console
         _tf_console_command "$input"
     esac
