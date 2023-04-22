@@ -18,3 +18,24 @@ jobs:
         # Run test suite in a docker container
         cd test
         docker run -w /src -v $(pwd):/src ubuntu bash -c "chmod +x test.sh; ./test.sh"
+
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build image
+        run: |
+          # Login dockerhub
+          pwd="${{ secrets.dockerhub }}"
+          docker login -u="plazzari" -p="${pwd}"
+
+          # Get version
+          VERSION=$(awk -F '[="]' '/^VERSION/ {print $3}' terraform-repl)
+
+          # Build docker images
+          docker build . --tag "plazzari/terraform-repl:${VERSION}"
+          docker tag "plazzari/terraform-repl:${VERSION}" plazzari/terraform-repl:latest
+
+          # Deploy docker images
+          docker push "plazzari/terraform-repl:${VERSION}"
+          docker push plazzari/terraform-repl:latest
