@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.5"
+VERSION="0.2.6"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -372,7 +372,7 @@ paths(scalars) as $p
     , ( getpath($p) | tojson )
     ]
   | join(": ")
-' | awk '{t=gensub(/\.([0-9]+)\./,".[\\1].","g", $1); gsub(/^0./,"local.",t); gsub(/:$/,"",t); print t}'
+' | awk '{t=gensub(/\.([0-9]+)\.*/,"[\\1].","g", $1); gsub(/^0./,"local.",t); gsub(/[.:]*$/,"",t); print t}'
 }
 
 _get_obj () {
