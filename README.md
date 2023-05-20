@@ -11,6 +11,7 @@ The standard terraform console has several limitations, including:
 - No ability to define variables
 - No ability to view command history
 - No ability to clear screen
+- No ability to run system commands
 
 terraform-repl provides a solution to these problems.
 
