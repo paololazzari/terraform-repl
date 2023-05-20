@@ -145,7 +145,7 @@ To exit:
 
 ### Tab completion
 
-You can use the TAB key to get autocompletion for terraform functions.
+You can use the TAB key to get autocompletion for terraform functions:
 
 ```bash
 > e<TAB>
@@ -154,6 +154,14 @@ endswith element
 > element
 ```
 
+as well as for `local` variables:
+
+```bash
+> local.<TAB>
+local.a  local.b.nums.0  local.b.nums.1
+```
+
+this can be useful when you are working with many `local` variables.
 
 ### Transcript
 

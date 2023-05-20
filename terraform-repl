@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.4"
+VERSION="0.2.5"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -245,20 +245,43 @@ _tab()
     return
   fi
 
-  # find possible matches in terraform functions list
-  possible_matches=($(printf "%s\n" "${TERRAFORM_FUNCTIONS[@]}" | grep "^${READLINE_LINE}"))
+  # check whether the input starts with local
+  if grep -qE "^local\..*$" <<< "$READLINE_LINE"; then
+    # get all local variables
+    locals_variables=$(_get_obj ".locals")
+    locals_paths=$(_get_paths "$locals_variables")
 
-  # if no matches are found, return
-  if [ ${#possible_matches[@]} -eq 0 ]; then
-    return
+    # find possible matches in paths given input
+    possible_matches=($(printf "%s\n" "${locals_paths}" | grep "^${READLINE_LINE}"))
 
-  # if a single match is found, use that to replace input string
-  elif [ ${#possible_matches[@]} -eq 1 ]; then
-    READLINE_LINE="${possible_matches[0]}("
-  # otherwise, print all matches
+    # if no matches are found, return
+    if [ ${#possible_matches[@]} -eq 0 ]; then
+      return
+
+    # if a single match is found, use that to replace input string
+    elif [ ${#possible_matches[@]} -eq 1 ]; then
+      READLINE_LINE="${possible_matches[0]}"
+    # otherwise, print all matches
+    else
+      printf "%s  " "${possible_matches[@]}"
+      printf "\n"
+    fi
   else
-    printf "%s  " "${possible_matches[@]}"
-    printf "\n"
+    # find possible matches in terraform functions list
+    possible_matches=($(printf "%s\n" "${TERRAFORM_FUNCTIONS[@]}" | grep "^${READLINE_LINE}"))
+
+    # if no matches are found, return
+    if [ ${#possible_matches[@]} -eq 0 ]; then
+      return
+
+    # if a single match is found, use that to replace input string
+    elif [ ${#possible_matches[@]} -eq 1 ]; then
+      READLINE_LINE="${possible_matches[0]}("
+    # otherwise, print all matches
+    else
+      printf "%s  " "${possible_matches[@]}"
+      printf "\n"
+    fi
   fi
 
   # adjust cursor to length of new string
@@ -341,6 +364,16 @@ _run_tf_console_command() {
   echo "$1" | terraform console 2>&1
 }
 
+_get_paths () {
+  # get all valid paths
+  echo "$1" | jq -r '
+paths(scalars) as $p
+  | [ ( [ $p[] | tostring ] | join(".") )
+    , ( getpath($p) | tojson )
+    ]
+  | join(": ")
+' | awk '{t=gensub(/\.([0-9]+)\./,".[\\1].","g", $1); gsub(/^0./,"local.",t); gsub(/:$/,"",t); print t}'
+}
 
 _get_obj () {
   # make sure terraform source files exist
