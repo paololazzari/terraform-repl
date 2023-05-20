@@ -6,6 +6,7 @@ terraform-repl is a terraform console wrapper that aims at providing a better in
 
 The standard terraform console has several limitations, including:
 
+- No tab completion
 - No ability to view all objects
 - No ability to define variables
 - No ability to view command history
