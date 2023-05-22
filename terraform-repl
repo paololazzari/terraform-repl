@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.6"
+VERSION="0.2.7"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -251,8 +251,11 @@ _tab()
     locals_variables=$(_get_obj ".locals")
     locals_paths=$(_get_paths "$locals_variables")
 
+    # escape square brackets in readline for grep
+    string_to_match=$(sed 's/\[/\\[/g' <<< "$READLINE_LINE")
+
     # find possible matches in paths given input
-    possible_matches=($(printf "%s\n" "${locals_paths}" | grep "^${READLINE_LINE}"))
+    possible_matches=($(printf "%s\n" "${locals_paths}" | grep "^${string_to_match}"))
 
     # if no matches are found, return
     if [ ${#possible_matches[@]} -eq 0 ]; then
@@ -263,8 +266,10 @@ _tab()
       READLINE_LINE="${possible_matches[0]}"
     # otherwise, print all matches
     else
+      # replace input string with longest common substring
+      READLINE_LINE=$(printf "%s\n" "${possible_matches[@]}" | sed -e '$q;N;s/^\(.*\).*\n\1.*$/\1/;h;G;D')
       printf "%s  " "${possible_matches[@]}"
-      printf "\n"
+      printf "\n\n"
     fi
   else
     # find possible matches in terraform functions list
@@ -372,7 +377,7 @@ paths(scalars) as $p
     , ( getpath($p) | tojson )
     ]
   | join(": ")
-' | awk '{t=gensub(/\.([0-9]+)\.*/,"[\\1].","g", $1); gsub(/^0./,"local.",t); gsub(/[.:]*$/,"",t); print t}'
+' | awk '{t=gensub(/\.([0-9]+)/,"[\\1]","g", $1); gsub(/^0./,"local.",t); gsub(/[.:]*$/,"",t); print t}'
 }
 
 _get_obj () {
