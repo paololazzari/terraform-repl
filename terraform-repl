@@ -377,7 +377,7 @@ paths(scalars) as $p
     , ( getpath($p) | tojson )
     ]
   | join(": ")
-' | awk '{t=gensub(/\.([0-9]+)/,"[\\1]","g", $1); gsub(/^0./,"local.",t); gsub(/[.:]*$/,"",t); print t}'
+' | sed -E "s/\.([0-9]+)/\[\1\]/g" | awk '{t=$1; gsub(/^0./,"local.",t); gsub(/[.:]*$/,"",t); print t}'
 }
 
 _get_obj () {
