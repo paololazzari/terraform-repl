@@ -41,3 +41,4 @@ chmod +x /usr/local/bin/hcl2json
 ./test_external_command.sh
 ./test_transcript.sh
 ./test_tf_function.sh
+./test_tab_complete_functions.sh
