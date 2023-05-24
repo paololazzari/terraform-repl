@@ -5,6 +5,7 @@ set -e
 apt-get update -y
 apt-get install curl -y
 apt-get install unzip -y
+apt-get install screen -y
 
 # Install shunit2
 curl -L https://raw.githubusercontent.com/kward/shunit2/master/shunit2 -o /usr/local/bin/shunit2
@@ -35,3 +36,8 @@ cp hcl2json_linux_amd64 /usr/local/bin/hcl2json
 chmod +x /usr/local/bin/hcl2json
 
 ./exit_code_if_docker_missing_test.sh
+
+./test_history.sh
+./test_external_command.sh
+./test_transcript.sh
+./test_tf_function.sh
