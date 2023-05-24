@@ -18,7 +18,7 @@ test_tab_complete_functions() {
   done
 
   # check output
-  output=$(head -n3 screenlog.0 | tail -n 1 | sed 's/[^a-z]//g' | tail -c +4)
+  output=$(head -n2 screenlog.0 | tail -n 1 | sed 's/[^a-z]//g' | tail -c +3)
   [ "$output" == $(echo "loglowerlengthlistlookup" | sed 's/[^a-z]//g') ]
   exitcode=$?
   assertEquals 0 "$exitcode"
