@@ -176,7 +176,6 @@ _validate_docker_install () {
   which docker &> /dev/null
   if [[ "$?" -ne 0 ]]; then
     echo "docker is not installed"
-    echo "To not use the docker container backend, use the -no-docker-container-backend option when running terraform-repl"
     exit 1
   fi
 
