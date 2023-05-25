@@ -15,7 +15,7 @@ locals {
 EOT
 
   # start background screen process
-  screen -d -mL bash -c "printf \"element(local.b.nums,0)\nexit\" | terraform-repl -no-docker-container-backend"
+  screen -d -mL bash -c "printf \"element(local.b.nums,0)\nexit\" | terraform-repl"
   
   # kill process
   pkill -f screen

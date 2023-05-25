@@ -4,7 +4,7 @@ test_external_command() {
   rm screenlog.0 &>/dev/null
   
   # start background screen process
-  screen -d -mL bash -c "printf \"\!whoami\nexit\" | terraform-repl -no-docker-container-backend"
+  screen -d -mL bash -c "printf \"\!whoami\nexit\" | terraform-repl"
   
   # kill process
   pkill -f screen

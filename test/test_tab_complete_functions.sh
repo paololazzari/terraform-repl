@@ -5,7 +5,7 @@ test_tab_complete_functions() {
 
   # start background screen process
   screen -SdmL test
-  screen -S test -X stuff 'terraform-repl -no-docker-container-backend'`echo -ne '\015'`
+  screen -S test -X stuff 'terraform-repl'`echo -ne '\015'`
   screen -S test -X stuff 'l'
   screen -S test -X stuff '\t'
 
