@@ -14,4 +14,4 @@ RUN apt-get update && \
 
 ADD terraform-repl .
 
-ENTRYPOINT ["./terraform-repl","-no-docker-container-backend"]
+ENTRYPOINT ["./terraform-repl"]

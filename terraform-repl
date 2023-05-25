@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.7"
+VERSION="0.2.8"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -151,7 +151,7 @@ TERRAFORM_FUNCTIONS=(
 
 
 # by default, use the docker container backend
-use_docker_container_backend=true
+use_docker_container_backend=false
 use_tab_completion=true
 generate_transcript=false
 timestamp=$(date +%Y%m%dT%H%M%SZ)
@@ -165,7 +165,7 @@ while [[ "$#" -gt 0 ]]; do
         -v|--version) print_version; exit 0 ;;
         -transcript) generate_transcript=true ;;
         -no-tab-completion) use_tab_completion=false ;;
-        -no-docker-container-backend) use_docker_container_backend=false ;;
+        -docker-container-backend) use_docker_container_backend=true ;;
         *) echo "Unknown parameter passed: $1" && exit 1;;
     esac
     shift

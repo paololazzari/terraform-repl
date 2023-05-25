@@ -17,10 +17,9 @@ terraform-repl provides a solution to these problems.
 
 ## How it works
 
-By default, terraform-repl starts a hashicorp/terraform docker container running terraform console, and uses this container to evaluate the expressions entered by the user.
-Using the single background terraform console container to evaluate expressions is in fact, for terraform projects of a certain size, faster than running a terraform console process for each expression.
+By default, terraform-repl evaluates each expression against a new terraform console process.
 
-You can however disable the container backend by using the `-no-docker-container-backend` option.
+You can, however, choose to use a hashicorp/terraform docker container as a single background process to evaluate the expressions entered. This can be faster if working with terraform projects of a certain size. You can enable the container backend by using the `-docker-container-backend` option.
 
 ## Usage
 
@@ -30,15 +29,14 @@ To start the REPL:
 
 ```bash
 $ terraform-repl
-Starting terraform console docker container...
 >
 ```
 
-or without the container backend:
+or with the container backend:
 
 ```bash
-$ terraform-repl -no-docker-container-backend
->
+$ terraform-repl -docker-container-backend
+Starting terraform console docker container...
 ```
 
 or starting the terraform-repl docker container:
