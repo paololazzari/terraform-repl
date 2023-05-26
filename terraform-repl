@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.8"
+VERSION="0.2.9"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -18,7 +18,7 @@ print_options()
   echo "  -v, --version                : Display the version of terraform-repl"
   echo "  -transcript                  : Generate a transcript file"
   echo "  -no-tab-completion           : Disable tab completion"
-  echo "  -no-docker-container-backend : Do not use a terraform console docker container as the backend for terraform console commands"
+  echo "  -docker-container-backend    : Use a terraform console docker container as the backend for terraform console commands"
 }
 
 TERRAFORM_FUNCTIONS=(
@@ -463,7 +463,7 @@ if [ "${use_tab_completion}" = true ]; then
 fi
 
 if [ "${use_docker_container_backend}" = true ]; then
-  # if the use-docker-container-backend flag has been specified, start the backend container
+  # if the -docker-container-backend flag has been specified, start the backend container
   _validate_docker_install
   _check_running_terraform_repl_container_in_dir
   _check_running_terraform_console_process
