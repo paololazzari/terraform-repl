@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.10"
+VERSION="0.2.11"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -237,6 +237,11 @@ _enable_tab_completion() {
   bind -x '"\t":"_tab"';
 }
 
+_disable_tab() {
+  set -o emacs
+  bind -x '"\t":""';
+}
+
 _tab()
 {
   # do nothing if input is empty
@@ -460,6 +465,8 @@ _validate_prerequisites
 
 if [ "${use_tab_completion}" = true ]; then
   _enable_tab_completion
+else
+  _disable_tab
 fi
 
 if [ "${use_docker_container_backend}" = true ]; then
