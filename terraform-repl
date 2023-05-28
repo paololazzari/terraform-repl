@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.11"
+VERSION="0.2.12"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -253,13 +253,65 @@ _tab()
   if grep -qE "^local\..*$" <<< "$READLINE_LINE"; then
     # get all local variables
     locals_variables=$(_get_obj ".locals")
-    locals_paths=$(_get_paths "$locals_variables")
+    locals_paths=$(_get_locals_paths "$locals_variables")
 
     # escape square brackets in readline for grep
     string_to_match=$(sed 's/\[/\\[/g' <<< "$READLINE_LINE")
 
     # find possible matches in paths given input
     possible_matches=($(printf "%s\n" "${locals_paths}" | grep "^${string_to_match}"))
+
+    # if no matches are found, return
+    if [ ${#possible_matches[@]} -eq 0 ]; then
+      return
+
+    # if a single match is found, use that to replace input string
+    elif [ ${#possible_matches[@]} -eq 1 ]; then
+      READLINE_LINE="${possible_matches[0]}"
+    # otherwise, print all matches
+    else
+      # replace input string with longest common substring
+      READLINE_LINE=$(printf "%s\n" "${possible_matches[@]}" | sed -e '$q;N;s/^\(.*\).*\n\1.*$/\1/;h;G;D')
+      printf "%s  " "${possible_matches[@]}"
+      printf "\n\n"
+    fi
+  # check whether the input begins with data
+  elif grep -qE "^data\..*$" <<< "$READLINE_LINE"; then
+    # get all data sources
+    data_sources=$(_get_obj ".data")
+    data_paths=$(_get_data_paths "$data_sources")
+
+    # escape square brackets in readline for grep
+    string_to_match=$(sed 's/\[/\\[/g' <<< "$READLINE_LINE")
+
+    # find possible matches in paths given input
+    possible_matches=($(printf "%s\n" "${data_paths}" | grep "^${string_to_match}"))
+
+    # if no matches are found, return
+    if [ ${#possible_matches[@]} -eq 0 ]; then
+      return
+
+    # if a single match is found, use that to replace input string
+    elif [ ${#possible_matches[@]} -eq 1 ]; then
+      READLINE_LINE="${possible_matches[0]}"
+    # otherwise, print all matches
+    else
+      # replace input string with longest common substring
+      READLINE_LINE=$(printf "%s\n" "${possible_matches[@]}" | sed -e '$q;N;s/^\(.*\).*\n\1.*$/\1/;h;G;D')
+      printf "%s  " "${possible_matches[@]}"
+      printf "\n\n"
+    fi
+  # check whether the input begins with resource
+  elif grep -qe "^resource\..*$" <<< "$READLINE_LINE"; then
+    # get all resources
+    resources=$(_get_obj ".resource")
+    resources_paths=$(_get_resource_paths "$resources")
+
+    # escape square brackets in readline for grep
+    string_to_match=$(sed 's/\[/\\[/g' <<< "$READLINE_LINE")
+
+    # find possible matches in paths given input
+    possible_matches=($(printf "%s\n" "${resources_paths}" | grep "^${string_to_match}"))
 
     # if no matches are found, return
     if [ ${#possible_matches[@]} -eq 0 ]; then
@@ -373,6 +425,29 @@ _run_tf_console_command() {
   echo "$1" | terraform console 2>&1
 }
 
+_get_data_paths () {
+  # get all valid paths for data sources
+  _get_partial_paths "$1" | sed -E "s/^/data./g"
+}
+
+_get_resource_paths () {
+  # get all valid paths for resources
+  _get_partial_paths "$1" | sed -E "s/^/resource./g"
+}
+
+_get_locals_paths () {
+  # get all valid paths for locals
+  _get_paths "$1" | sed -E "s/\.([0-9]+)/\[\1\]/g" | awk '{t=$1; gsub(/^[0-9]*\.*/,"local.",t); gsub(/[.:]*$/,"",t); print t}'
+}
+
+_get_partial_paths () {
+  # get top level paths only. for data sources and resources
+  echo "$1" | jq -r '
+to_entries[] |
+ .key as $k | .value as $v | $k + "." + ($v | to_entries[] | .key)
+'
+}
+
 _get_paths () {
   # get all valid paths
   echo "$1" | jq -r '
@@ -381,7 +456,7 @@ paths(scalars) as $p
     , ( getpath($p) | tojson )
     ]
   | join(": ")
-' | sed -E "s/\.([0-9]+)/\[\1\]/g" | awk '{t=$1; gsub(/^[0-9]+./,"local.",t); gsub(/[.:]*$/,"",t); print t}'
+'
 }
 
 _get_obj () {
