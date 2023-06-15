@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.12"
+VERSION="0.2.13"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -595,13 +595,14 @@ EOM
         fi
 
         # run the command in a standalone terraform console in case it is an incorrect command
-        terraform_console_command=$(_run_tf_console_command)
+        terraform_console_command_output=$(_run_tf_console_command)
         terraform_console_command_exit_code=$?
 
         if [ "$terraform_console_command_exit_code" -ne 0 ]; then
           # remove the resource from the temporary file
           head -n -1 terraform_repl_tmp.tf > terraform_repl_tmp_2.tf
           mv terraform_repl_tmp_2.tf terraform_repl_tmp.tf
+          echo "$terraform_console_command_output"
         fi
 
         if [ "${use_docker_container_backend}" = true ]; then
