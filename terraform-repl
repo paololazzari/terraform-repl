@@ -603,6 +603,7 @@ EOM
           head -n -1 terraform_repl_tmp.tf > terraform_repl_tmp_2.tf
           mv terraform_repl_tmp_2.tf terraform_repl_tmp.tf
           echo "$terraform_console_command_output"
+          _write_to_transcript_if_enabled "$terraform_console_command_output"
         fi
 
         if [ "${use_docker_container_backend}" = true ]; then
