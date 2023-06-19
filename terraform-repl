@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.14"
+VERSION="0.2.15"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -327,6 +327,32 @@ _tab()
       printf "%s  " "${possible_matches[@]}"
       printf "\n\n"
     fi
+  # check whether the input begins with output
+  elif grep -qe "^output\..*$" <<< "$READLINE_LINE"; then
+    # get all outputs
+    output=$(_get_obj ".output")
+    output_paths=$(_get_output_paths "$output")
+
+    # escape square brackets in readline for grep
+    string_to_match=$(sed 's/\[/\\[/g' <<< "$READLINE_LINE")
+
+    # find possible matches in paths given input
+    possible_matches=($(printf "%s\n" "${output_paths}" | grep "^${string_to_match}"))
+
+    # if no matches are found, return
+    if [ ${#possible_matches[@]} -eq 0 ]; then
+      return
+
+    # if a single match is found, use that to replace input string
+    elif [ ${#possible_matches[@]} -eq 1 ]; then
+      READLINE_LINE="${possible_matches[0]}"
+    # otherwise, print all matches
+    else
+      # replace input string with longest common substring
+      READLINE_LINE=$(printf "%s\n" "${possible_matches[@]}" | sed -e '$q;N;s/^\(.*\).*\n\1.*$/\1/;h;G;D')
+      printf "%s  " "${possible_matches[@]}"
+      printf "\n\n"
+    fi
   else
     # find possible matches in terraform functions list
     possible_matches=($(printf "%s\n" "${TERRAFORM_FUNCTIONS[@]}" | grep "^${READLINE_LINE}"))
@@ -433,6 +459,11 @@ _get_data_paths () {
 _get_resource_paths () {
   # get all valid paths for resources
   _get_partial_paths "$1" | sed -E "s/^/resource./g"
+}
+
+_get_output_paths () {
+  # get all valid paths for outputs
+  echo "$1" | jq -r 'to_entries[] | "output."+.key'
 }
 
 _get_locals_paths () {
