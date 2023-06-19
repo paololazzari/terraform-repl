@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.15"
+VERSION="0.2.16"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -19,6 +19,19 @@ print_options()
   echo "  -transcript                  : Generate a transcript file"
   echo "  -no-tab-completion           : Disable tab completion"
   echo "  -docker-container-backend    : Use a terraform console docker container as the backend for terraform console commands"
+}
+
+help()
+{
+  echo "terraform-repl [version $VERSION]"
+  echo "* To inspect all objects of a certain kind, use \"local\", \"resource\", \"data\" or \"output\""
+  echo "* To get tab completion for objects, use the object name followed by the <TAB> key, e.g. \"local.<TAB>\""
+  echo "* To get tab completion for terraform functions, use char(s) followed by the <TAB> key, e.g. \"a<TAB>\""
+  echo "* To view the command history, use \"history\""
+  echo "* To clear the screen, use \"clear\""
+  echo "* To exit, use \"exit\""
+  echo "* To view this message, use \"help\""
+  echo "* To run an external command, use \"!\" followed by the command"
 }
 
 TERRAFORM_FUNCTIONS=(
@@ -696,7 +709,7 @@ EOM
 
     # if the input is either exit, clear or history, evaluate it
     case "$input" in
-        exit | clear | history)
+        exit | clear | history | help)
           eval "$input"
         ;;
         *)
