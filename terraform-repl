@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.13"
+VERSION="0.2.14"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -616,10 +616,9 @@ EOM
         echo "$assignment"
       fi
       continue
-    fi
 
     # if the input is exacly local, use hcl2json and jq to get object
-    if grep -qE "^local$" <<< "$input"; then
+    elif grep -qE "^local$" <<< "$input"; then
       command_output=$(_get_obj ".locals" | tee /dev/tty)
       if [[ "$?" -ne 0 ]]; then
         echo "The provided input did not match any locals object"
@@ -627,10 +626,9 @@ EOM
       # write input and output to transcript if enabled
       _write_to_transcript_if_enabled "> $input" "$command_output"
       continue
-    fi
 
     # if the input is resource followed by an optional key, use hcl2json and jq to get object
-    if grep -qE "^resource(\.[^.]+)?$" <<< "$input"; then
+    elif grep -qE "^resource(\.[^.]+)?$" <<< "$input"; then
       command_output=$(_get_obj ".$input" | tee /dev/tty)
       if [[ "$?" -ne 0 ]]; then
         echo "The provided input did not match any resource object"
@@ -638,10 +636,9 @@ EOM
       # write input and output to transcript if enabled
       _write_to_transcript_if_enabled "> $input" "$command_output"
       continue
-    fi
 
     # if the input is data followed by an optional key, use hcl2json and jq to get object
-    if grep -qE "^data(\.[^.]+)?$" <<< "$input"; then
+    elif grep -qE "^data(\.[^.]+)?$" <<< "$input"; then
       command_output=$(_get_obj ".$input" | tee /dev/tty)
       if [[ "$?" -ne 0 ]]; then
         echo "The provided input did not match any data object"
@@ -649,10 +646,9 @@ EOM
       # write input and output to transcript if enabled
       _write_to_transcript_if_enabled "> $input" "$command_output"
       continue
-    fi
 
     # if the input is output followed by an optional key, use hcl2json and jq to get object
-    if grep -qE "^output(\.[^.]+)?$" <<< "$input"; then
+    elif grep -qE "^output(\.[^.]+)?$" <<< "$input"; then
       command_output=$(_get_obj ".$input" | tee /dev/tty)
       if [[ "$?" -ne 0 ]]; then
         echo "The provided input did not match any output object"
@@ -660,10 +656,9 @@ EOM
       # write input and output to transcript if enabled
       _write_to_transcript_if_enabled "> $input" "$command_output"
       continue
-    fi
 
     # if the input is ! followed by a string, evaluate the string
-    if grep -qE "^!.+" <<< "$input"; then
+    elif grep -qE "^!.+" <<< "$input"; then
       eval "${input:1}"
       continue
     fi
