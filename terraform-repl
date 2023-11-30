@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.17"
+VERSION="0.2.18"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -185,40 +185,54 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 _validate_docker_install () {
+  local PREREQ_MET=true
+
   # make sure docker is installed
   which docker &> /dev/null
   if [[ "$?" -ne 0 ]]; then
     echo "docker is not installed"
-    exit 1
+    PREREQ_MET=false
   fi
 
   # make sure socat is installed
   which socat &> /dev/null
   if [[ "$?" -ne 0 ]]; then
     echo "socat is not installed"
+    PREREQ_MET=false
+  fi
+
+  if [ "$PREREQ_MET" = false ] ; then
+    echo "One or more prerequisites were not met!"
     exit 1
   fi
 }
 
 _validate_prerequisites () {
+  local PREREQ_MET=true
+
   # make sure terraform is installed
   which terraform &> /dev/null
   if [[ "$?" -ne 0 ]]; then
     echo "terraform is not installed"
-    exit 1
+    PREREQ_MET=false
   fi
 
   # make sure jq is installed
   which jq &> /dev/null
   if [[ "$?" -ne 0 ]]; then
     echo "jq is not installed"
-    exit 1
+    PREREQ_MET=false
   fi
 
   # make sure hcl2json is installed
   which hcl2json &> /dev/null
   if [[ "$?" -ne 0 ]]; then
     echo "hcl2json is not installed"
+    PREREQ_MET=false
+  fi
+
+  if [ "$PREREQ_MET" = false ] ; then
+    echo "One or more prerequisites were not met!"
     exit 1
   fi
 }
