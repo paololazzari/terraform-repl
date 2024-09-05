@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.18"
+VERSION="0.2.19"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -24,7 +24,7 @@ print_options()
 help()
 {
   echo "terraform-repl [version $VERSION]"
-  echo "* To inspect all objects of a certain kind, use \"local\", \"resource\", \"data\" or \"output\""
+  echo "* To inspect all objects of a certain kind, use \"data\", \"local\", \"module\", \"output\", or \"resource\""
   echo "* To get tab completion for objects, use the object name followed by the <TAB> key, e.g. \"local.<TAB>\""
   echo "* To get tab completion for terraform functions, use char(s) followed by the <TAB> key, e.g. \"a<TAB>\""
   echo "* To view the command history, use \"history\""
@@ -162,6 +162,8 @@ TERRAFORM_FUNCTIONS=(
   type
 )
 
+REQUIRED_TOOLS=("terraform" "jq" "hcl2json")
+REQUIRED_DOCKER_TOOLS=("docker" "socat")
 
 # by default, use the docker container backend
 use_docker_container_backend=false
@@ -184,57 +186,18 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-_validate_docker_install () {
-  local PREREQ_MET=true
-
-  # make sure docker is installed
-  which docker &> /dev/null
-  if [[ "$?" -ne 0 ]]; then
-    echo "docker is not installed"
-    PREREQ_MET=false
-  fi
-
-  # make sure socat is installed
-  which socat &> /dev/null
-  if [[ "$?" -ne 0 ]]; then
-    echo "socat is not installed"
-    PREREQ_MET=false
-  fi
-
-  if [ "$PREREQ_MET" = false ] ; then
-    echo "One or more prerequisites were not met!"
-    exit 1
-  fi
-}
-
 _validate_prerequisites () {
   local PREREQ_MET=true
+  local PREREQS=("$@")
 
-  # make sure terraform is installed
-  which terraform &> /dev/null
-  if [[ "$?" -ne 0 ]]; then
-    echo "terraform is not installed"
-    PREREQ_MET=false
-  fi
+  for PREREQ in "${PREREQS[@]}"; do
+    command -v "$PREREQ" &> /dev/null || {
+      echo "$PREREQ is not installed"
+      PREREQ_MET=false
+    }
+  done
 
-  # make sure jq is installed
-  which jq &> /dev/null
-  if [[ "$?" -ne 0 ]]; then
-    echo "jq is not installed"
-    PREREQ_MET=false
-  fi
-
-  # make sure hcl2json is installed
-  which hcl2json &> /dev/null
-  if [[ "$?" -ne 0 ]]; then
-    echo "hcl2json is not installed"
-    PREREQ_MET=false
-  fi
-
-  if [ "$PREREQ_MET" = false ] ; then
-    echo "One or more prerequisites were not met!"
-    exit 1
-  fi
+  [ "$PREREQ_MET" ] || exit 1
 }
 
 _check_running_terraform_console_process () {
@@ -309,7 +272,7 @@ _tab()
     data_paths=$(_get_data_paths "$data_sources")
 
     # escape square brackets in readline for grep
-    string_to_match=$(sed 's/\[/\\[/g' <<< "$READLINE_LINE")
+    string_to_match="${READLINE_LINE//\[/\\[}"
 
     # find possible matches in paths given input
     possible_matches=($(printf "%s\n" "${data_paths}" | grep "^${string_to_match}"))
@@ -594,7 +557,7 @@ _write_to_transcript_if_enabled() {
   fi
 }
 
-_validate_prerequisites
+_validate_prerequisites "${REQUIRED_TOOLS[@]}"
 
 if [ "${use_tab_completion}" = true ]; then
   _enable_tab_completion
@@ -604,7 +567,7 @@ fi
 
 if [ "${use_docker_container_backend}" = true ]; then
   # if the -docker-container-backend flag has been specified, start the backend container
-  _validate_docker_install
+  _validate_prerequisites "${REQUIRED_DOCKER_TOOLS[@]}"
   _check_running_terraform_repl_container_in_dir
   _check_running_terraform_console_process
   _run_tf_container
@@ -675,41 +638,21 @@ EOM
       fi
       continue
 
-    # if the input is exacly local, use hcl2json and jq to get object
+    # when the input is exacly local
     elif grep -qE "^local$" <<< "$input"; then
       command_output=$(_get_obj ".locals" | tee /dev/tty)
-      if [[ "$?" -ne 0 ]]; then
+      if [[ -z "$command_output" ]]; then
         echo "The provided input did not match any locals object"
       fi
       # write input and output to transcript if enabled
       _write_to_transcript_if_enabled "> $input" "$command_output"
       continue
 
-    # if the input is resource followed by an optional key, use hcl2json and jq to get object
-    elif grep -qE "^resource(\.[^.]+)?$" <<< "$input"; then
+    # when the input reflects another supported object followed by an optional key
+    elif grep -qE "^(resource|data|output|module)(\.[^.]+)?$" <<< "$input"; then
       command_output=$(_get_obj ".$input" | tee /dev/tty)
-      if [[ "$?" -ne 0 ]]; then
-        echo "The provided input did not match any resource object"
-      fi
-      # write input and output to transcript if enabled
-      _write_to_transcript_if_enabled "> $input" "$command_output"
-      continue
-
-    # if the input is data followed by an optional key, use hcl2json and jq to get object
-    elif grep -qE "^data(\.[^.]+)?$" <<< "$input"; then
-      command_output=$(_get_obj ".$input" | tee /dev/tty)
-      if [[ "$?" -ne 0 ]]; then
-        echo "The provided input did not match any data object"
-      fi
-      # write input and output to transcript if enabled
-      _write_to_transcript_if_enabled "> $input" "$command_output"
-      continue
-
-    # if the input is output followed by an optional key, use hcl2json and jq to get object
-    elif grep -qE "^output(\.[^.]+)?$" <<< "$input"; then
-      command_output=$(_get_obj ".$input" | tee /dev/tty)
-      if [[ "$?" -ne 0 ]]; then
-        echo "The provided input did not match any output object"
+      if [[ -z "$command_output" ]]; then
+        echo "The provided input did not match any object"
       fi
       # write input and output to transcript if enabled
       _write_to_transcript_if_enabled "> $input" "$command_output"
