@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.2.18"
+VERSION="0.2.19"
 
 set -o history
 HISTFILE=~/.myrepl_history
@@ -466,9 +466,15 @@ _check_container_running_status () {
 }
 
 _run_tf_console_command_in_container() {
-  # execute the specified command in terraform console in the docker container
-  echo "$1" | socat EXEC:"docker attach ${container_name}",pty STDIN &> /dev/null
-  socat_exit_code=$?
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    # execute the specified command in terraform console in the docker container
+    echo "$1" | socat EXEC:"docker attach ${container_name}",pty - &> /dev/null
+    socat_exit_code=$?
+  else
+    # execute the specified command in terraform console in the docker container
+    echo "$1" | socat EXEC:"docker attach ${container_name}",pty STDIN &> /dev/null
+    socat_exit_code=$?
+  fi
   docker logs "$container_name" --since "1s" | sed 1d
   return "$socat_exit_code"
 }
