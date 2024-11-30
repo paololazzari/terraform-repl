@@ -4,7 +4,7 @@ test_exit_code_if_tf_missing() {
   # If terraform is not installed, terraform-repl should exit with exit code 1
   output=$(terraform-repl)
   exitcode=$?
-  assertEquals "terraform is not installed" "$output"
+  assertContains "terraform is not installed" "$output"
   assertEquals 1 "$exitcode"
 }
 

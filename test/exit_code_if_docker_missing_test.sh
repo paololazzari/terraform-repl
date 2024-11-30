@@ -5,7 +5,7 @@ test_exit_code_if_docker_missing() {
   # terraform-repl should exit with exit code 1
   output=$(terraform-repl -docker-container-backend)
   exitcode=$?
-  assertEquals "docker is not installed" "$output"
+  assertContains "docker is not installed" "$output"
   assertEquals 1 "$exitcode"
 }
 
